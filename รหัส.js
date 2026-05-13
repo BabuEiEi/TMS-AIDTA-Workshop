@@ -18,8 +18,19 @@ const USER_SEARCH_CONFIG = {
     HEADER_ROW: 35
 };
 
+// Certificate generation — replace placeholder values with real IDs before deployment
+var CERT_TEMPLATE_ID = 'YOUR_CERT_TEMPLATE_ID';
+var CERT_OUTPUT_FOLDER_ID = 'YOUR_CERT_OUTPUT_FOLDER_ID';
+
 function getThaiTime() {
     return Utilities.formatDate(new Date(), "Asia/Bangkok", "dd/MM/yyyy HH:mm:ss");
+}
+
+function getThaiDate() {
+    var months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    var parts = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'dd/MM/yyyy').split('/');
+    return parseInt(parts[0]) + ' ' + months[parseInt(parts[1]) - 1] + ' ' + (parseInt(parts[2]) + 543);
 }
 
 function normalizePersonalId(value) {
@@ -227,27 +238,23 @@ function searchUsers(payload) {
         var areaIndex = findHeaderIndex(headers, ['area_service', 'area service', 'สังกัด/หน่วยงาน', 'สังกัด'], 3);
         var clusterIndex = findHeaderIndex(headers, ['cluster', 'Cluster'], 4);
         var schoolIndex = findHeaderIndex(headers, ['school', 'โรงเรียน', 'school_name', 'ชื่อโรงเรียน'], -1);
-
-        if (!nameQuery && !areaQuery && !schoolQuery) {
-            return { status: 'error', message: 'กรุณาระบุชื่อ - นามสกุล, สังกัด หรือโรงเรียนอย่างน้อย 1 ช่อง' };
-        }
-
         var matchedUsers = [];
-        for (var i = 0; i < data.length; i++) {
-            var personalId = (data[i][personalIdIndex] || '').toString().trim();
-            var name = (data[i][nameIndex] || '').toString().trim();
-            var role = (data[i][roleIndex] || '').toString().trim();
-            var areaService = (data[i][areaIndex] || '').toString().trim();
-            var cluster = (data[i][clusterIndex] || '').toString().trim();
-            var school = schoolIndex >= 0 ? (data[i][schoolIndex] || '').toString().trim() : '';
 
-            var lowerName = name.toLowerCase();
-            var lowerArea = areaService.toLowerCase();
-            var lowerCluster = cluster.toLowerCase();
-            var lowerSchool = school.toLowerCase();
+        for (var i = 0; i < data.length; i++) {
+            var row = data[i];
+            var personalId = row[personalIdIndex] || '';
+            var name = row[nameIndex] || '';
+            var role = row[roleIndex] || '';
+            var areaService = row[areaIndex] || '';
+            var cluster = row[clusterIndex] || '';
+            var school = schoolIndex >= 0 ? row[schoolIndex] || '' : '';
+
+            var lowerName = name.toString().trim().toLowerCase();
+            var lowerArea = areaService.toString().trim().toLowerCase();
+            var lowerSchool = school.toString().trim().toLowerCase();
 
             var isNameMatch = !nameQuery || lowerName.indexOf(nameQuery) !== -1;
-            var isAreaMatch = !areaQuery || lowerArea.indexOf(areaQuery) !== -1 || lowerCluster.indexOf(areaQuery) !== -1;
+            var isAreaMatch = !areaQuery || lowerArea.indexOf(areaQuery) !== -1;
             var isSchoolMatch = !schoolQuery || lowerSchool.indexOf(schoolQuery) !== -1;
 
             if (isNameMatch && isAreaMatch && isSchoolMatch) {
@@ -262,6 +269,10 @@ function searchUsers(payload) {
             }
 
             if (matchedUsers.length >= 30) break;
+        }
+
+        if (!nameQuery && !areaQuery && !schoolQuery) {
+            return { status: 'error', message: 'กรุณาระบุชื่อ - นามสกุล, สังกัด หรือโรงเรียนอย่างน้อย 1 ช่อง' };
         }
 
         return { status: 'success', data: matchedUsers };
@@ -338,9 +349,6 @@ function submitAttendance(payload) {
                 return { status: 'success', message: 'บันทึกเวลาแล้ว (ระบบกันรายการซ้ำ)' };
             }
         }
-
-        logSheet.appendRow(["ATT-" + new Date().getTime(), normalizedPersonalId, payload.day_no, payload.time_slot, getThaiTime(), payload.note]);
-        return { status: 'success', message: 'บันทึกเวลาสำเร็จ' };
     } catch (error) {
         return { status: 'error', message: 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message };
     } finally {
@@ -520,7 +528,7 @@ function getAssignmentData(personalId) {
     }
     for (var j = 1; j < logs.length; j++) {
         if (normalizePersonalId(logs[j][1]) === normalizedPersonalId) {
-            userSubmissions[logs[j][2]] = { submission_type: logs[j][3], file_link: logs[j][4], timestamp: logs[j][5], status: logs[j][6], feedback: logs[j][7], is_late: logs[j][8] };
+            userSubmissions[logs[j][2]] = { submission_type: logs[j][3], file_link: logs[j][4], timestamp: logs[j][5], status: logs[j][6], feedback: logs[j][7], score: logs[j][8], is_late: logs[j][9], cert_link: logs[j][10] || '' };
         }
     }
     return { status: 'success', assignments: assignments, userSubmissions: userSubmissions };
@@ -678,6 +686,81 @@ function getMentorData(personalId) {
     }
 }
 
+
+function generateCertificate(payload) {
+    // payload: { personal_id, assign_id, assign_title, status, score }
+    try {
+        // 1. Look up user name, area_service, school directly from Users sheet
+        var masterSs = SpreadsheetApp.getActiveSpreadsheet();
+        var usersData = masterSs.getSheetByName('Users').getDataRange().getDisplayValues();
+        var userName = '';
+        var areaService = '';
+        var school = '';
+        var normalizedId = normalizePersonalId(payload.personal_id);
+        for (var i = 1; i < usersData.length; i++) {
+            if (normalizePersonalId(usersData[i][0]) === normalizedId) {
+                userName = usersData[i][1] || '';  // col index 1 = name
+                areaService = usersData[i][3] || '';  // col index 3 = area_service
+                school = usersData[i][8] || '';  // col index 8 = school
+                break;
+            }
+        }
+
+        // 2. Copy Slides template into output folder
+        var certTitle = 'Certificate_' + normalizedId + '_' + payload.assign_id;
+        var outputFolder = DriveApp.getFolderById(CERT_OUTPUT_FOLDER_ID);
+        var slidesCopy = DriveApp.getFileById(CERT_TEMPLATE_ID).makeCopy(certTitle, outputFolder);
+
+        // 3. Replace all placeholders in every slide
+        var slidesDoc = SlidesApp.openById(slidesCopy.getId());
+        var todayThai = getThaiDate();
+        var slides = slidesDoc.getSlides();
+        for (var s = 0; s < slides.length; s++) {
+            slides[s].replaceAllText('{{NAME}}', userName);
+            slides[s].replaceAllText('{{ASSIGN_TITLE}}', payload.assign_title || '');
+            slides[s].replaceAllText('{{STATUS}}', payload.status || '');
+            slides[s].replaceAllText('{{SCORE}}', (payload.score || '').toString());
+            slides[s].replaceAllText('{{DATE}}', todayThai);
+            slides[s].replaceAllText('{{AREA_SERVICE}}', areaService);
+            slides[s].replaceAllText('{{SCHOOL}}', school);
+        }
+        slidesDoc.saveAndClose();
+
+        // 4. Export the Slides copy as PDF via Drive export URL
+        var slideId = slidesCopy.getId();
+        var exportUrl = 'https://docs.google.com/presentation/d/' + slideId + '/export/pdf';
+        var pdfResponse = UrlFetchApp.fetch(exportUrl, {
+            headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+            muteHttpExceptions: true
+        });
+        if (pdfResponse.getResponseCode() !== 200) {
+            slidesCopy.setTrashed(true);
+            throw new Error('PDF export failed with HTTP ' + pdfResponse.getResponseCode());
+        }
+        var pdfBlob = pdfResponse.getBlob().setName(certTitle + '.pdf');
+
+        // 5. Remove old PDF with same name (overwrite scenario)
+        var existingPdfs = outputFolder.getFilesByName(certTitle + '.pdf');
+        while (existingPdfs.hasNext()) {
+            existingPdfs.next().setTrashed(true);
+        }
+
+        // 6. Save new PDF and make it publicly accessible via link
+        var pdfFile = outputFolder.createFile(pdfBlob);
+        pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+        // 7. Delete the Slides copy — keep PDF only
+        slidesCopy.setTrashed(true);
+
+        return { status: 'success', link: pdfFile.getUrl() };
+    } catch (e) {
+        return { status: 'error', message: 'generateCertificate Error: ' + e.message };
+    }
+}
+
+// ============================================================
+// 👔 [GRADE ASSIGNMENT] ตรวจและให้คะแนนภาระงาน + สร้างเกียรติบัตรอัตโนมัติ
+// ============================================================
 function gradeAssignment(payload) {
     // payload: { log_id, status, feedback, score }
     try {
@@ -685,10 +768,48 @@ function gradeAssignment(payload) {
         var data = sheet.getDataRange().getValues();
         for (var i = 1; i < data.length; i++) {
             if (data[i][0].toString().trim() === payload.log_id.toString().trim()) {
-                sheet.getRange(i + 1, 7).setValue(payload.status);   // col G = status
-                sheet.getRange(i + 1, 8).setValue(payload.feedback || ''); // col H = feedback
-                sheet.getRange(i + 1, 9).setValue(payload.score || '');    // col I = score
-                return { status: 'success' };
+                var personalId = data[i][1].toString().trim();
+                var assignId = data[i][2].toString().trim();
+
+                // Save grade columns (G, H, I)
+                sheet.getRange(i + 1, 7).setValue(payload.status);
+                sheet.getRange(i + 1, 8).setValue(payload.feedback || '');
+                sheet.getRange(i + 1, 9).setValue(payload.score || '');
+
+                var result = { status: 'success' };
+
+                // Generate certificate only for cert-eligible statuses
+                var certStatuses = ['พอใช้', 'ดี', 'ดีมาก'];
+                if (certStatuses.indexOf(payload.status) !== -1) {
+                    var assignTitle = assignId; // fallback to ID if title not found
+                    try {
+                        var masterSs2 = SpreadsheetApp.getActiveSpreadsheet();
+                        var asmConfig = masterSs2.getSheetByName('Assignment_Config').getDataRange().getDisplayValues();
+                        for (var k = 1; k < asmConfig.length; k++) {
+                            if (asmConfig[k][0].toString().trim() === assignId) {
+                                assignTitle = asmConfig[k][1] || assignId;
+                                break;
+                            }
+                        }
+                    } catch (asmErr) { /* use assignId as fallback */ }
+
+                    var certResult = generateCertificate({
+                        personal_id: personalId,
+                        assign_id: assignId,
+                        assign_title: assignTitle,
+                        status: payload.status,
+                        score: payload.score || ''
+                    });
+
+                    if (certResult.status === 'success') {
+                        sheet.getRange(i + 1, 11).setValue(certResult.link); // col K = cert_link (index 10)
+                        result.cert_link = certResult.link;
+                    } else {
+                        result.cert_warning = 'บันทึกคะแนนสำเร็จ แต่สร้างเกียรติบัตรไม่สำเร็จ: ' + certResult.message;
+                    }
+                }
+
+                return result;
             }
         }
         return { status: 'error', message: 'ไม่พบ log_id: ' + payload.log_id };

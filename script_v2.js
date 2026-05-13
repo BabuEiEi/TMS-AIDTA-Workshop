@@ -876,6 +876,10 @@ function renderAssignmentDashboard() {
             statusBadge = `<span class="badge ${gradeColor[sub.status] || 'bg-secondary'}">${sub.status}</span>`;
             if (sub.score) statusBadge += `<div class="small text-muted mt-1">คะแนน: ${sub.score}</div>`;
             actionBtn = sub.file_link ? `<a href="${sub.file_link}" target="_blank" class="btn btn-sm btn-outline-secondary w-100 rounded-pill">ดูงานที่ส่ง</a>` : '';
+            const CERT_ELIGIBLE = ['พอใช้', 'ดี', 'ดีมาก'];
+            if (CERT_ELIGIBLE.includes(sub.status) && sub.cert_link) {
+                actionBtn += `<a href="${sub.cert_link}" target="_blank" class="btn btn-sm btn-certificate w-100 rounded-pill mt-1">🏆 ดาวน์โหลดเกียรติบัตร</a>`;
+            }
             if (sub.status === 'ปรับปรุง') {
                 actionBtn += `<button class="btn btn-sm btn-warning text-dark w-100 rounded-pill shadow-sm mt-1" onclick="promptSubmitAssignment('${asn.assign_id}', '${asn.submission_type}', ${isLateDeadline})">ส่งงานใหม่</button>`;
             }
@@ -1403,7 +1407,19 @@ async function openGradeModal(logJson, cfgJson) {
         const res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'gradeAssignment', payload: { log_id: log.log_id, status: formValues.status, feedback: formValues.feedback, score: formValues.score } }) });
         const result = await res.json();
         if (result.status === 'success') {
-            Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
+            if (result.cert_link) {
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'บันทึกและสร้างเกียรติบัตรสำเร็จ!',
+                    html: `<p class="mb-3">ระบบสร้างเกียรติบัตรให้อัตโนมัติแล้ว</p><a href="${result.cert_link}" target="_blank" class="btn btn-certificate px-4 py-2 rounded-pill"><i class="bi bi-trophy-fill me-2"></i>เปิดดูเกียรติบัตร</a>`,
+                    showConfirmButton: true,
+                    confirmButtonText: 'ตกลง'
+                });
+            } else if (result.cert_warning) {
+                await Swal.fire({ icon: 'warning', title: 'บันทึกคะแนนสำเร็จ', text: result.cert_warning, confirmButtonText: 'ตกลง' });
+            } else {
+                Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
+            }
             await loadMentorData();
             renderMentorGradeTab();
         } else { Swal.fire('ผิดพลาด', result.message, 'error'); }

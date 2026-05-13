@@ -1,41 +1,41 @@
 body {
-  font-family: 'Niramit', sans-serif;
-  background-color: #f4f7f9;
-  background-image: radial-gradient(rgba(9, 0, 107, 0.12) 2px, transparent 2px);
-  background-size: 25px 25px;
-  background-position: center center;
-  background-attachment: fixed;
+    font-family: 'Niramit', sans-serif;
+    background-color: #f4f7f9;
+    background-image: radial-gradient(rgba(9, 0, 107, 0.12) 2px, transparent 2px);
+    background-size: 25px 25px;
+    background-position: center center;
+    background-attachment: fixed;
 }
 
 .card {
-  border: none;
-  border-radius: 12px;
+    border: none;
+    border-radius: 12px;
 }
 
 .menu-card {
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .menu-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
 .fade-in {
-  animation: fadeIn 0.5s ease-in-out;
+    animation: fadeIn 0.5s ease-in-out;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ========================================= */
@@ -46,7 +46,8 @@ body {
 :root {
     --sidebar-w: 220px;
     --sidebar-w-collapsed: 60px;
-    --navbar-h: 62px;   /* ความสูงโดยประมาณของ sticky navbar */
+    --navbar-h: 62px;
+    /* ความสูงโดยประมาณของ sticky navbar */
 }
 
 /* Sidebar หลัก — fixed ซ้ายสุด เต็มความสูง */
@@ -58,7 +59,7 @@ body {
     width: var(--sidebar-w);
     background: #fff;
     border-right: 1px solid #e9ecef;
-    box-shadow: 2px 0 12px rgba(0,0,0,0.07);
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.07);
     z-index: 1040;
     display: flex;
     flex-direction: column;
@@ -187,7 +188,10 @@ body {
 }
 
 /* spacer ดัน logout ลงล่าง */
-.sidebar-spacer { flex: 1; min-height: 16px; }
+.sidebar-spacer {
+    flex: 1;
+    min-height: 16px;
+}
 
 /* ---- Tooltip เมื่อ collapsed ---- */
 .app-sidebar.collapsed .sidebar-nav-item {
@@ -273,21 +277,21 @@ body {
     overflow-x: hidden;
 }
 
-#page-content > .container-fluid {
+#page-content>.container-fluid {
     max-width: 100%;
     padding-left: 1rem;
     padding-right: 1rem;
 }
 
 @media (min-width: 768px) {
-    #page-content > .container-fluid {
+    #page-content>.container-fluid {
         padding-left: 1.5rem;
         padding-right: 1.5rem;
     }
 }
 
 @media (min-width: 1200px) {
-    #page-content > .container-fluid {
+    #page-content>.container-fluid {
         padding-left: 2rem;
         padding-right: 2rem;
     }
@@ -304,7 +308,8 @@ body {
     box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
     overflow-x: hidden;
     width: 100%;
 }
@@ -330,11 +335,39 @@ html, body {
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,0.4);
+        background: rgba(0, 0, 0, 0.4);
         z-index: 1039;
     }
 
     .sidebar-overlay.active {
         display: block;
     }
+}
+
+/* ========================================= */
+/* 🏆 Certificate Download Button */
+/* ========================================= */
+.btn-certificate {
+    display: inline-block;
+    background: linear-gradient(135deg, #f5c518 0%, #e8a900 50%, #c8860a 100%);
+    color: #3d2b00 !important;
+    font-weight: 700;
+    font-size: 0.8rem;
+    border: none;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    box-shadow: 0 3px 10px rgba(200, 134, 10, 0.4);
+}
+
+.btn-certificate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(200, 134, 10, 0.5);
+    filter: brightness(1.08);
+    color: #3d2b00 !important;
+    text-decoration: none;
+}
+
+.btn-certificate:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(200, 134, 10, 0.4);
 }
