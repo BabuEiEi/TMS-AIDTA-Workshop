@@ -980,7 +980,7 @@ const CUSTOM_HEADERS = {
     'Attendance_Config': ['รหัส', 'วันที่', 'ว/ด/ป', 'รหัสรอบ', 'ชื่อรอบ', 'เวลาเริ่มต้น', 'เวลาสิ้นสุด', 'เปิดใช้'],
     'Exam_Config': ['ประเภทการสอบ', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้', 'เกณฑ์การผ่าน'],
     'Speakers_Config': ['รหัส', 'ชื่อวิทยากร', 'หัวข้อบรรยาย', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้'],
-    'Assignment_Config': ['รหัส', 'ชื่อภาระงาน', 'คำอธิบาย', 'รูปแบบ', 'ID Folder', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้', 'กลุ่มเป้าหมาย', 'คะแนนเต็ม', 'รูบริค'],
+    'Assignment_Config': ['รหัส', 'ชื่อภาระงาน', 'คำอธิบาย', 'รูปแบบ', 'ID Folder', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้', 'กลุ่มเป้าหมาย', 'คะแนนเต็ม', 'รูบริค', 'ID Template เกียรติบัตร', 'ID Folder เกียรติบัตร'],
     'Questions_Bank': ['รหัสคำถาม', 'ประเภท (Pre/Post/Survey)', 'หมวดหมู่', 'คำถาม', 'ตัวเลือก A', 'ตัวเลือก B', 'ตัวเลือก C', 'ตัวเลือก D', 'ตัวเลือก E', 'เฉลย']
 };
 
@@ -1586,13 +1586,14 @@ function renderAdminTable(targetId = "configTableContainer") {
     } else {
         adminConfigRows.forEach(row => {
             html += '<tr>';
-            row.forEach((cell, i) => {
-                if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return;
+            for (let i = 0; i < adminConfigHeaders.length; i++) {
+                if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) continue;
+                let cell = row[i] || '';
                 // Strip HTML tags (e.g. from Quill editor) before displaying in table
                 let plainCell = cell.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
                 let displayCell = plainCell.length > 30 ? plainCell.substring(0, 30) + '...' : plainCell;
                 html += `<td>${displayCell}</td>`;
-            });
+            }
             html += `<td class="text-center border-start bg-white" style="position: sticky; right: 0; z-index: 1;"><button class="btn btn-sm btn-warning text-dark me-1 shadow-sm" title="แก้ไข" onclick="openConfigForm('${row[0]}')"><i class="bi bi-pencil-square"></i></button><button class="btn btn-sm btn-danger shadow-sm" title="ลบ" onclick="deleteConfigRow('${row[0]}')"><i class="bi bi-trash"></i></button></td></tr>`;
         });
     }

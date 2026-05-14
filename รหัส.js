@@ -686,6 +686,32 @@ function getMentorData(personalId) {
     }
 }
 
+function getAssignmentCertificateConfig(assignId) {
+    var config = {
+        assign_title: assignId,
+        cert_template_id: CERT_TEMPLATE_ID,
+        cert_output_folder_id: CERT_OUTPUT_FOLDER_ID
+    };
+
+    try {
+        var masterSs = SpreadsheetApp.getActiveSpreadsheet();
+        var sheet = masterSs.getSheetByName('Assignment_Config');
+        if (!sheet) return config;
+
+        var rows = sheet.getDataRange().getDisplayValues();
+        for (var i = 1; i < rows.length; i++) {
+            if (rows[i][0].toString().trim() === assignId.toString().trim()) {
+                config.assign_title = rows[i][1] || assignId;
+                config.cert_template_id = (rows[i][11] || '').toString().trim() || CERT_TEMPLATE_ID;
+                config.cert_output_folder_id = (rows[i][12] || '').toString().trim() || CERT_OUTPUT_FOLDER_ID;
+                break;
+            }
+        }
+    } catch (e) { }
+
+    return config;
+}
+
 
 function generateCertificate(payload) {
     // payload: { personal_id, assign_id, assign_title, status, score }
@@ -706,10 +732,12 @@ function generateCertificate(payload) {
             }
         }
 
+        var certConfig = getAssignmentCertificateConfig(payload.assign_id);
+
         // 2. Copy Slides template into output folder
         var certTitle = 'Certificate_' + normalizedId + '_' + payload.assign_id;
-        var outputFolder = DriveApp.getFolderById(CERT_OUTPUT_FOLDER_ID);
-        var slidesCopy = DriveApp.getFileById(CERT_TEMPLATE_ID).makeCopy(certTitle, outputFolder);
+        var outputFolder = DriveApp.getFolderById(certConfig.cert_output_folder_id);
+        var slidesCopy = DriveApp.getFileById(certConfig.cert_template_id).makeCopy(certTitle, outputFolder);
 
         // 3. Replace all placeholders in every slide
         var slidesDoc = SlidesApp.openById(slidesCopy.getId());
@@ -781,22 +809,12 @@ function gradeAssignment(payload) {
                 // Generate certificate only for cert-eligible statuses
                 var certStatuses = ['พอใช้', 'ดี', 'ดีมาก'];
                 if (certStatuses.indexOf(payload.status) !== -1) {
-                    var assignTitle = assignId; // fallback to ID if title not found
-                    try {
-                        var masterSs2 = SpreadsheetApp.getActiveSpreadsheet();
-                        var asmConfig = masterSs2.getSheetByName('Assignment_Config').getDataRange().getDisplayValues();
-                        for (var k = 1; k < asmConfig.length; k++) {
-                            if (asmConfig[k][0].toString().trim() === assignId) {
-                                assignTitle = asmConfig[k][1] || assignId;
-                                break;
-                            }
-                        }
-                    } catch (asmErr) { /* use assignId as fallback */ }
+                    var certConfig = getAssignmentCertificateConfig(assignId);
 
                     var certResult = generateCertificate({
                         personal_id: personalId,
                         assign_id: assignId,
-                        assign_title: assignTitle,
+                        assign_title: certConfig.assign_title,
                         status: payload.status,
                         score: payload.score || ''
                     });
@@ -833,6 +851,11 @@ function manageConfig(payload) {
     if (action === "GET") { return { status: 'success', headers: headers, rows: data.slice(1) }; }
     else if (action === "SAVE") {
         var rowData = payload.rowData; var isNew = payload.isNew;
+        var requiredCols = rowData.length;
+        var currentMaxCols = sheet.getMaxColumns();
+        if (requiredCols > currentMaxCols) {
+            sheet.insertColumnsAfter(currentMaxCols, requiredCols - currentMaxCols);
+        }
         if (isNew) { sheet.appendRow(rowData); } else {
             var id = rowData[0].toString().trim(); var found = false;
             for (var i = 1; i < data.length; i++) {
